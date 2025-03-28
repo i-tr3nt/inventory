@@ -384,79 +384,6 @@ class MainWindow(QMainWindow):
         dashboard_tab = QWidget()
         dashboard_layout = QVBoxLayout(dashboard_tab)
         
-        # Stats cards
-        stats_layout = QHBoxLayout()
-        
-        # Total Items Card
-        total_card = QFrame()
-        total_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                padding: 20px;
-                min-width: 200px;
-            }
-        """)
-        total_layout = QVBoxLayout(total_card)
-        self.total_items_label = QLabel("Total Items: 0")
-        self.total_items_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        self.total_items_label.setStyleSheet("color: #2c3e50;")
-        total_layout.addWidget(self.total_items_label)
-        stats_layout.addWidget(total_card)
-        
-        # Active Items Card
-        active_card = QFrame()
-        active_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                padding: 20px;
-                min-width: 200px;
-            }
-        """)
-        active_layout = QVBoxLayout(active_card)
-        self.active_items_label = QLabel("Active Items: 0")
-        self.active_items_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        self.active_items_label.setStyleSheet("color: #27ae60;")
-        active_layout.addWidget(self.active_items_label)
-        stats_layout.addWidget(active_card)
-        
-        # Inactive Items Card
-        inactive_card = QFrame()
-        inactive_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                padding: 20px;
-                min-width: 200px;
-            }
-        """)
-        inactive_layout = QVBoxLayout(inactive_card)
-        self.inactive_items_label = QLabel("Inactive Items: 0")
-        self.inactive_items_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        self.inactive_items_label.setStyleSheet("color: #7f8c8d;")
-        inactive_layout.addWidget(self.inactive_items_label)
-        stats_layout.addWidget(inactive_card)
-        
-        # Damaged Items Card
-        damaged_card = QFrame()
-        damaged_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                padding: 20px;
-                min-width: 200px;
-            }
-        """)
-        damaged_layout = QVBoxLayout(damaged_card)
-        self.damaged_items_label = QLabel("Damaged Items: 0")
-        self.damaged_items_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        self.damaged_items_label.setStyleSheet("color: #e74c3c;")
-        damaged_layout.addWidget(self.damaged_items_label)
-        stats_layout.addWidget(damaged_card)
-        
-        dashboard_layout.addLayout(stats_layout)
-
         # Recent items table
         recent_label = QLabel("Recently Added Items")
         recent_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
@@ -471,6 +398,20 @@ class MainWindow(QMainWindow):
         ])
         self.recent_items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         dashboard_layout.addWidget(self.recent_items_table)
+
+        # Items tab
+        items_tab = QWidget()
+        items_layout = QVBoxLayout(items_tab)
+        
+        # Items table
+        self.items_table = QTableWidget()
+        self.items_table.setColumnCount(8)
+        self.items_table.setHorizontalHeaderLabels([
+            "Name", "Model", "Serial Number", "Project Name", 
+            "Quantity", "Location", "Date Added", "Actions"
+        ])
+        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        items_layout.addWidget(self.items_table)
 
         # Stock Movement tab
         movement_tab = QWidget()
@@ -488,6 +429,7 @@ class MainWindow(QMainWindow):
 
         # Add tabs
         tabs.addTab(dashboard_tab, "Dashboard")
+        tabs.addTab(items_tab, "Items")
         tabs.addTab(movement_tab, "Stock Movement")
 
         # Right side - Quick actions
@@ -537,7 +479,7 @@ class MainWindow(QMainWindow):
         actions_layout.addWidget(sort_label)
 
         self.sort_combo = QComboBox()
-        self.sort_combo.addItems(["Name", "Date Added", "Project Name"])
+        self.sort_combo.addItems(["Date Added", "Project Name"])
         self.sort_combo.currentTextChanged.connect(self.sort_items)
         actions_layout.addWidget(self.sort_combo)
 
@@ -560,11 +502,11 @@ class MainWindow(QMainWindow):
                 background-color: #3498db;
                 color: white;
                 border: none;
-                padding: 12px;
+                padding: 8px;
                 border-radius: 5px;
                 font-weight: bold;
                 margin: 5px 0;
-                min-height: 40px;
+                min-height: 30px;
             }
             QPushButton:hover {
                 background-color: #2980b9;
@@ -575,12 +517,12 @@ class MainWindow(QMainWindow):
                 border-radius: 8px;
             }
             QTableWidget::item {
-                padding: 8px;
+                padding: 6px;
             }
             QHeaderView::section {
                 background-color: #3498db;
                 color: white;
-                padding: 10px;
+                padding: 8px;
                 border: none;
                 font-weight: bold;
             }
@@ -591,7 +533,7 @@ class MainWindow(QMainWindow):
             }
             QTabBar::tab {
                 background-color: #f5f6fa;
-                padding: 10px 20px;
+                padding: 8px 16px;
                 border: 1px solid #e0e0e0;
                 border-bottom: none;
                 border-top-left-radius: 5px;
@@ -603,23 +545,23 @@ class MainWindow(QMainWindow):
                 font-weight: bold;
             }
             QComboBox {
-                padding: 8px;
+                padding: 6px;
                 border: 1px solid #e0e0e0;
                 border-radius: 5px;
                 background-color: white;
-                min-height: 40px;
-                min-width: 400px;
+                min-height: 30px;
+                min-width: 200px;
             }
             QLineEdit, QTextEdit, QSpinBox {
-                padding: 8px;
+                padding: 6px;
                 border: 1px solid #e0e0e0;
                 border-radius: 5px;
                 background-color: white;
-                min-height: 40px;
-                min-width: 400px;
+                min-height: 30px;
+                min-width: 200px;
             }
             QDialog {
-                min-width: 800px;
+                min-width: 600px;
             }
             QCompleter {
                 background-color: white;
@@ -635,6 +577,32 @@ class MainWindow(QMainWindow):
     def load_data(self):
         session = Session()
         
+        # Load items
+        items = session.query(Item).all()
+        self.items_table.setRowCount(len(items))
+        for i, item in enumerate(items):
+            self.items_table.setItem(i, 0, QTableWidgetItem(item.name))
+            self.items_table.setItem(i, 1, QTableWidgetItem(item.model))
+            self.items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
+            self.items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
+            self.items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
+            self.items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
+            self.items_table.setItem(i, 6, QTableWidgetItem(item.date_added.strftime("%Y-%m-%d %H:%M:%S")))
+
+            # Add action buttons
+            actions_widget = QWidget()
+            actions_layout = QHBoxLayout(actions_widget)
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            
+            edit_btn = QPushButton("Edit")
+            edit_btn.clicked.connect(lambda checked, item=item: self.edit_item(item))
+            delete_btn = QPushButton("Delete")
+            delete_btn.clicked.connect(lambda checked, item=item: self.delete_item(item))
+            
+            actions_layout.addWidget(edit_btn)
+            actions_layout.addWidget(delete_btn)
+            self.items_table.setCellWidget(i, 7, actions_widget)
+
         # Load recent items (last 5)
         recent_items = session.query(Item).order_by(Item.date_added.desc()).limit(5).all()
         self.recent_items_table.setRowCount(len(recent_items))
@@ -659,17 +627,6 @@ class MainWindow(QMainWindow):
             self.movement_table.setItem(i, 5, QTableWidgetItem(movement.project_category))
             self.movement_table.setItem(i, 6, QTableWidgetItem(str(movement.quantity)))
             self.movement_table.setItem(i, 7, QTableWidgetItem(movement.status))
-
-        # Update dashboard stats
-        total_items = session.query(Item).count()
-        active_items = session.query(Item).filter(Item.quantity > 0).count()
-        inactive_items = session.query(Item).filter(Item.quantity == 0).count()
-        damaged_items = session.query(Item).filter(Item.status == "Damaged").count()
-        
-        self.total_items_label.setText(f"Total Items: {total_items}")
-        self.active_items_label.setText(f"Active Items: {active_items}")
-        self.inactive_items_label.setText(f"Inactive Items: {inactive_items}")
-        self.damaged_items_label.setText(f"Damaged Items: {damaged_items}")
 
         session.close()
 
@@ -793,20 +750,32 @@ class MainWindow(QMainWindow):
         session = Session()
         if sort_by == "Date Added":
             items = session.query(Item).order_by(Item.date_added.desc()).all()
-        elif sort_by == "Name":
-            items = session.query(Item).order_by(Item.name).all()
         else:
             items = session.query(Item).order_by(Item.project_category).all()
         
-        self.recent_items_table.setRowCount(len(items))
+        self.items_table.setRowCount(len(items))
         for i, item in enumerate(items):
-            self.recent_items_table.setItem(i, 0, QTableWidgetItem(item.name))
-            self.recent_items_table.setItem(i, 1, QTableWidgetItem(item.model))
-            self.recent_items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
-            self.recent_items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
-            self.recent_items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
-            self.recent_items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
-            self.recent_items_table.setItem(i, 6, QTableWidgetItem(item.date_added.strftime("%Y-%m-%d %H:%M:%S")))
+            self.items_table.setItem(i, 0, QTableWidgetItem(item.name))
+            self.items_table.setItem(i, 1, QTableWidgetItem(item.model))
+            self.items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
+            self.items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
+            self.items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
+            self.items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
+            self.items_table.setItem(i, 6, QTableWidgetItem(item.date_added.strftime("%Y-%m-%d %H:%M:%S")))
+            
+            # Add action buttons
+            actions_widget = QWidget()
+            actions_layout = QHBoxLayout(actions_widget)
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            
+            edit_btn = QPushButton("Edit")
+            edit_btn.clicked.connect(lambda checked, item=item: self.edit_item(item))
+            delete_btn = QPushButton("Delete")
+            delete_btn.clicked.connect(lambda checked, item=item: self.delete_item(item))
+            
+            actions_layout.addWidget(edit_btn)
+            actions_layout.addWidget(delete_btn)
+            self.items_table.setCellWidget(i, 7, actions_widget)
         
         session.close()
 
