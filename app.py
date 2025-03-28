@@ -2,14 +2,17 @@ import sys
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QPushButton, QLabel, QTableWidget, 
                             QTableWidgetItem, QDialog, QLineEdit, QComboBox, 
-                            QTextEdit, QSpinBox, QMessageBox, QTabWidget)
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QIcon, QPainter
+                            QTextEdit, QSpinBox, QMessageBox, QTabWidget,
+                            QDateEdit, QCompleter, QFrame, QToolBar,
+                            QFileDialog, QHeaderView)
+from PySide6.QtCore import Qt, QDate
+from PySide6.QtGui import QFont, QIcon, QPainter, QPalette, QColor, QAction
 from PySide6.QtCharts import QChart, QChartView, QPieSeries
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+import pandas as pd
 
 # Database setup
 Base = declarative_base()
@@ -27,7 +30,7 @@ class Item(Base):
     quantity = Column(Integer, default=0)
     supplier = Column(String(100))
     storage_location = Column(String(50))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    date_added = Column(DateTime, default=datetime.utcnow)
     movements = relationship("StockMovement", back_populates="item")
 
 class StockMovement(Base):
@@ -35,19 +38,27 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True)
     item_id = Column(Integer, ForeignKey('item.id'), nullable=False)
     movement_type = Column(String(20), nullable=False)
+    from_location = Column(String(50))
+    to_location = Column(String(50))
+    project_category = Column(String(100))
     quantity = Column(Integer, nullable=False)
+    status = Column(String(20))
     date = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text)
     item = relationship("Item", back_populates="movements")
 
-Base.metadata.create_all(engine)
+# Create all tables
+Base.metadata.drop_all(engine)  # Drop existing tables
+Base.metadata.create_all(engine)  # Create new tables
 
 class AddItemDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, item=None):
         super().__init__(parent)
         self.setWindowTitle("Add New Item")
         self.setModal(True)
         self.setup_ui()
+        if item:
+            self.populate_form(item)
 
     def setup_ui(self):
         layout = QVBoxLayout()
@@ -106,9 +117,17 @@ class AddItemDialog(QDialog):
         location_layout = QHBoxLayout()
         location_layout.addWidget(QLabel("Storage Location:"))
         self.location_input = QComboBox()
-        self.location_input.addItems(["stores", "office", "container", "data office"])
+        self.location_input.addItems(["Data Office", "Stores", "Container", "Field Work"])
         location_layout.addWidget(self.location_input)
         layout.addLayout(location_layout)
+
+        # Date Added
+        date_layout = QHBoxLayout()
+        date_layout.addWidget(QLabel("Date Added:"))
+        self.date_input = QDateEdit()
+        self.date_input.setDate(QDate.currentDate())
+        date_layout.addWidget(self.date_input)
+        layout.addLayout(date_layout)
 
         # Buttons
         button_layout = QHBoxLayout()
@@ -122,6 +141,21 @@ class AddItemDialog(QDialog):
 
         self.setLayout(layout)
 
+    def populate_form(self, item):
+        self.name_input.setText(item.name)
+        self.model_input.setText(item.model)
+        self.serial_input.setText(item.serial_number)
+        self.category_input.setText(item.project_category)
+        self.desc_input.setText(item.description)
+        self.quantity_input.setValue(item.quantity)
+        self.supplier_input.setText(item.supplier)
+        self.location_input.setCurrentText(item.storage_location)
+        # Convert datetime to QDate
+        if isinstance(item.date_added, datetime):
+            self.date_input.setDate(QDate(item.date_added.year, item.date_added.month, item.date_added.day))
+        else:
+            self.date_input.setDate(QDate.currentDate())
+
     def get_item_data(self):
         return {
             'name': self.name_input.text(),
@@ -131,53 +165,203 @@ class AddItemDialog(QDialog):
             'description': self.desc_input.toPlainText(),
             'quantity': self.quantity_input.value(),
             'supplier': self.supplier_input.text(),
-            'storage_location': self.location_input.currentText()
+            'storage_location': self.location_input.currentText(),
+            'date_added': self.date_input.date().toPython()
+        }
+
+class StockMovementDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Record Stock Movement")
+        self.setModal(True)
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+        
+        # Item (with autocomplete)
+        item_layout = QHBoxLayout()
+        item_layout.addWidget(QLabel("Item:"))
+        self.item_input = QLineEdit()
+        self.item_input.setPlaceholderText("Start typing to search items...")
+        item_layout.addWidget(self.item_input)
+        layout.addLayout(item_layout)
+
+        # Movement Type
+        type_layout = QHBoxLayout()
+        type_layout.addWidget(QLabel("Movement Type:"))
+        self.type_input = QComboBox()
+        self.type_input.addItems(["In", "Out", "Transferred"])
+        type_layout.addWidget(self.type_input)
+        layout.addLayout(type_layout)
+
+        # From Location
+        from_layout = QHBoxLayout()
+        from_layout.addWidget(QLabel("From:"))
+        self.from_input = QComboBox()
+        self.from_input.addItems(["Data Office", "Stores", "Container", "Field Work"])
+        from_layout.addWidget(self.from_input)
+        layout.addLayout(from_layout)
+
+        # To Location
+        to_layout = QHBoxLayout()
+        to_layout.addWidget(QLabel("To:"))
+        self.to_input = QComboBox()
+        self.to_input.addItems(["Data Office", "Stores", "Container", "Field Work"])
+        to_layout.addWidget(self.to_input)
+        layout.addLayout(to_layout)
+
+        # Project Category
+        category_layout = QHBoxLayout()
+        category_layout.addWidget(QLabel("Project Category:"))
+        self.category_input = QLineEdit()
+        category_layout.addWidget(self.category_input)
+        layout.addLayout(category_layout)
+
+        # Quantity
+        quantity_layout = QHBoxLayout()
+        quantity_layout.addWidget(QLabel("Quantity:"))
+        self.quantity_input = QSpinBox()
+        self.quantity_input.setMinimum(1)
+        quantity_layout.addWidget(self.quantity_input)
+        layout.addLayout(quantity_layout)
+
+        # Status
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(QLabel("Status:"))
+        self.status_input = QComboBox()
+        self.status_input.addItems(["Active", "Inactive", "Damaged"])
+        status_layout.addWidget(self.status_input)
+        layout.addLayout(status_layout)
+
+        # Date
+        date_layout = QHBoxLayout()
+        date_layout.addWidget(QLabel("Date:"))
+        self.date_input = QDateEdit()
+        self.date_input.setDate(QDate.currentDate())
+        date_layout.addWidget(self.date_input)
+        layout.addLayout(date_layout)
+
+        # Notes
+        notes_layout = QVBoxLayout()
+        notes_layout.addWidget(QLabel("Notes:"))
+        self.notes_input = QTextEdit()
+        notes_layout.addWidget(self.notes_input)
+        layout.addLayout(notes_layout)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(self.accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(save_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+    def get_movement_data(self):
+        return {
+            'item_name': self.item_input.text(),
+            'movement_type': self.type_input.currentText(),
+            'from_location': self.from_input.currentText(),
+            'to_location': self.to_input.currentText(),
+            'project_category': self.category_input.text(),
+            'quantity': self.quantity_input.value(),
+            'status': self.status_input.currentText(),
+            'date': self.date_input.date().toPython(),
+            'notes': self.notes_input.toPlainText()
         }
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Inventory Management System")
-        self.setMinimumSize(1000, 600)
+        self.setWindowTitle("THRUZIM Inventory Management")
+        self.setMinimumSize(1400, 800)
         self.setup_ui()
-        self.load_data()
-
+        
     def setup_ui(self):
         # Create central widget and main layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Create toolbar
+        toolbar = QToolBar()
+        toolbar.setMovable(False)
+        self.addToolBar(toolbar)
+        toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #ffffff;
+                border-bottom: 1px solid #e0e0e0;
+                padding: 8px;
+            }
+        """)
+
+        # Add toolbar actions
+        search_action = QAction("Search", self)
+        search_action.triggered.connect(self.show_search_dialog)
+        toolbar.addAction(search_action)
+
+        export_action = QAction("Export", self)
+        export_action.triggered.connect(self.export_data)
+        toolbar.addAction(export_action)
+
+        # Create main content area
+        content_widget = QWidget()
+        layout.addWidget(content_widget)
+        content_layout = QHBoxLayout(content_widget)
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(20)
+
+        # Left side - Main content
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
 
         # Create tab widget
         tabs = QTabWidget()
-        layout.addWidget(tabs)
+        left_layout.addWidget(tabs)
 
         # Dashboard tab
         dashboard_tab = QWidget()
         dashboard_layout = QVBoxLayout(dashboard_tab)
         
-        # Stats cards
-        stats_layout = QHBoxLayout()
+        # Stats card
+        stats_card = QFrame()
+        stats_card.setStyleSheet("""
+            QFrame {
+                background-color: #ffffff;
+                border-radius: 8px;
+                padding: 20px;
+            }
+        """)
+        stats_layout = QVBoxLayout(stats_card)
+        
         self.total_items_label = QLabel("Total Items: 0")
-        self.low_stock_label = QLabel("Low Stock Items: 0")
+        self.total_items_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
+        self.total_items_label.setStyleSheet("color: #2c3e50;")
         stats_layout.addWidget(self.total_items_label)
-        stats_layout.addWidget(self.low_stock_label)
-        dashboard_layout.addLayout(stats_layout)
+        
+        dashboard_layout.addWidget(stats_card)
 
-        # Category distribution chart
-        self.chart_view = QChartView()
-        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        dashboard_layout.addWidget(self.chart_view)
-
-        # Quick actions
-        actions_layout = QHBoxLayout()
-        add_item_btn = QPushButton("Add New Item")
-        add_item_btn.clicked.connect(self.show_add_item_dialog)
-        record_movement_btn = QPushButton("Record Movement")
-        record_movement_btn.clicked.connect(self.show_record_movement_dialog)
-        actions_layout.addWidget(add_item_btn)
-        actions_layout.addWidget(record_movement_btn)
-        dashboard_layout.addLayout(actions_layout)
+        # Recent items table
+        recent_label = QLabel("Recently Added Items")
+        recent_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        recent_label.setStyleSheet("color: #2c3e50; margin-top: 20px;")
+        dashboard_layout.addWidget(recent_label)
+        
+        self.recent_items_table = QTableWidget()
+        self.recent_items_table.setColumnCount(7)
+        self.recent_items_table.setHorizontalHeaderLabels([
+            "Name", "Model", "Serial Number", "Project Name", 
+            "Quantity", "Location", "Date Added"
+        ])
+        self.recent_items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        dashboard_layout.addWidget(self.recent_items_table)
 
         # Items tab
         items_tab = QWidget()
@@ -185,11 +369,12 @@ class MainWindow(QMainWindow):
         
         # Items table
         self.items_table = QTableWidget()
-        self.items_table.setColumnCount(7)
+        self.items_table.setColumnCount(8)
         self.items_table.setHorizontalHeaderLabels([
-            "Name", "Model", "Serial Number", "Category", 
-            "Quantity", "Location", "Actions"
+            "Name", "Model", "Serial Number", "Project Name", 
+            "Quantity", "Location", "Date Added", "Actions"
         ])
+        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         items_layout.addWidget(self.items_table)
 
         # Stock Movement tab
@@ -198,16 +383,132 @@ class MainWindow(QMainWindow):
         
         # Movement table
         self.movement_table = QTableWidget()
-        self.movement_table.setColumnCount(5)
+        self.movement_table.setColumnCount(8)
         self.movement_table.setHorizontalHeaderLabels([
-            "Date", "Item", "Type", "Quantity", "Notes"
+            "Date", "Item", "Type", "From", "To", 
+            "Project Name", "Quantity", "Status"
         ])
+        self.movement_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         movement_layout.addWidget(self.movement_table)
 
         # Add tabs
         tabs.addTab(dashboard_tab, "Dashboard")
         tabs.addTab(items_tab, "Items")
         tabs.addTab(movement_tab, "Stock Movement")
+
+        # Right side - Quick actions
+        right_widget = QWidget()
+        right_widget.setMaximumWidth(300)
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Quick actions card
+        actions_card = QFrame()
+        actions_card.setStyleSheet("""
+            QFrame {
+                background-color: #ffffff;
+                border-radius: 8px;
+                padding: 20px;
+            }
+        """)
+        actions_layout = QVBoxLayout(actions_card)
+
+        # Quick actions title
+        actions_title = QLabel("Quick Actions")
+        actions_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        actions_title.setStyleSheet("color: #2c3e50; margin-bottom: 20px;")
+        actions_layout.addWidget(actions_title)
+
+        # Add action buttons
+        add_item_btn = QPushButton("Add New Item")
+        add_item_btn.clicked.connect(self.show_add_item_dialog)
+        actions_layout.addWidget(add_item_btn)
+
+        record_movement_btn = QPushButton("Record Movement")
+        record_movement_btn.clicked.connect(self.show_record_movement_dialog)
+        actions_layout.addWidget(record_movement_btn)
+
+        # Sort options
+        sort_label = QLabel("Sort By")
+        sort_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+        sort_label.setStyleSheet("color: #2c3e50; margin-top: 20px;")
+        actions_layout.addWidget(sort_label)
+
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["Date Added", "Project Name"])
+        self.sort_combo.currentTextChanged.connect(self.sort_items)
+        actions_layout.addWidget(self.sort_combo)
+
+        right_layout.addWidget(actions_card)
+        right_layout.addStretch()
+
+        # Add left and right widgets to main layout
+        content_layout.addWidget(left_widget, stretch=7)
+        content_layout.addWidget(right_widget, stretch=3)
+
+        # Set style
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f5f6fa;
+            }
+            QLabel {
+                color: #2c3e50;
+            }
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                font-weight: bold;
+                margin: 5px 0;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+            QTableWidget::item {
+                padding: 8px;
+            }
+            QHeaderView::section {
+                background-color: #3498db;
+                color: white;
+                padding: 10px;
+                border: none;
+                font-weight: bold;
+            }
+            QTabWidget::pane {
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                background-color: white;
+            }
+            QTabBar::tab {
+                background-color: #f5f6fa;
+                padding: 10px 20px;
+                border: 1px solid #e0e0e0;
+                border-bottom: none;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+            }
+            QTabBar::tab:selected {
+                background-color: white;
+                border-bottom: none;
+                font-weight: bold;
+            }
+            QComboBox {
+                padding: 8px;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                background-color: white;
+            }
+        """)
+        
+        # Load data after UI is set up
+        self.load_data()
 
     def load_data(self):
         session = Session()
@@ -222,14 +523,33 @@ class MainWindow(QMainWindow):
             self.items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
             self.items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
             self.items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
-            
+            self.items_table.setItem(i, 6, QTableWidgetItem(str(item.date_added)))
+
+            # Add action buttons
             actions_widget = QWidget()
             actions_layout = QHBoxLayout(actions_widget)
-            view_btn = QPushButton("View")
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            
             edit_btn = QPushButton("Edit")
-            actions_layout.addWidget(view_btn)
+            edit_btn.clicked.connect(lambda checked, item=item: self.edit_item(item))
+            delete_btn = QPushButton("Delete")
+            delete_btn.clicked.connect(lambda checked, item=item: self.delete_item(item))
+            
             actions_layout.addWidget(edit_btn)
-            self.items_table.setCellWidget(i, 6, actions_widget)
+            actions_layout.addWidget(delete_btn)
+            self.items_table.setCellWidget(i, 7, actions_widget)
+
+        # Load recent items (last 5)
+        recent_items = session.query(Item).order_by(Item.date_added.desc()).limit(5).all()
+        self.recent_items_table.setRowCount(len(recent_items))
+        for i, item in enumerate(recent_items):
+            self.recent_items_table.setItem(i, 0, QTableWidgetItem(item.name))
+            self.recent_items_table.setItem(i, 1, QTableWidgetItem(item.model))
+            self.recent_items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
+            self.recent_items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
+            self.recent_items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
+            self.recent_items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
+            self.recent_items_table.setItem(i, 6, QTableWidgetItem(str(item.date_added)))
 
         # Load movements
         movements = session.query(StockMovement).order_by(StockMovement.date.desc()).all()
@@ -238,26 +558,165 @@ class MainWindow(QMainWindow):
             self.movement_table.setItem(i, 0, QTableWidgetItem(str(movement.date)))
             self.movement_table.setItem(i, 1, QTableWidgetItem(movement.item.name))
             self.movement_table.setItem(i, 2, QTableWidgetItem(movement.movement_type))
-            self.movement_table.setItem(i, 3, QTableWidgetItem(str(movement.quantity)))
-            self.movement_table.setItem(i, 4, QTableWidgetItem(movement.notes))
+            self.movement_table.setItem(i, 3, QTableWidgetItem(movement.from_location))
+            self.movement_table.setItem(i, 4, QTableWidgetItem(movement.to_location))
+            self.movement_table.setItem(i, 5, QTableWidgetItem(movement.project_category))
+            self.movement_table.setItem(i, 6, QTableWidgetItem(str(movement.quantity)))
+            self.movement_table.setItem(i, 7, QTableWidgetItem(movement.status))
 
         # Update dashboard stats
         total_items = session.query(Item).count()
-        low_stock = session.query(Item).filter(Item.quantity < 5).count()
         self.total_items_label.setText(f"Total Items: {total_items}")
-        self.low_stock_label.setText(f"Low Stock Items: {low_stock}")
 
-        # Update category distribution chart
-        categories = session.query(Item.project_category, func.count(Item.id)).group_by(Item.project_category).all()
-        series = QPieSeries()
-        for category, count in categories:
-            series.append(category, count)
+        session.close()
+
+    def edit_item(self, item):
+        dialog = AddItemDialog(self, item)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            try:
+                session = Session()
+                item_data = dialog.get_item_data()
+                for key, value in item_data.items():
+                    setattr(item, key, value)
+                session.commit()
+                self.load_data()
+                QMessageBox.information(self, "Success", "Item updated successfully!")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error updating item: {str(e)}")
+            finally:
+                session.close()
+
+    def delete_item(self, item):
+        reply = QMessageBox.question(self, "Confirm Delete", 
+                                   "Are you sure you want to delete this item?",
+                                   QMessageBox.StandardButton.Yes | 
+                                   QMessageBox.StandardButton.No)
         
-        chart = QChart()
-        chart.addSeries(series)
-        chart.setTitle("Category Distribution")
-        self.chart_view.setChart(chart)
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                session = Session()
+                session.delete(item)
+                session.commit()
+                self.load_data()
+                QMessageBox.information(self, "Success", "Item deleted successfully!")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error deleting item: {str(e)}")
+            finally:
+                session.close()
 
+    def show_search_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Search Items")
+        dialog.setModal(True)
+        layout = QVBoxLayout(dialog)
+        
+        search_input = QLineEdit()
+        search_input.setPlaceholderText("Search by name, model, or serial number...")
+        layout.addWidget(search_input)
+        
+        # Add search results table
+        results_table = QTableWidget()
+        results_table.setColumnCount(6)
+        results_table.setHorizontalHeaderLabels([
+            "Name", "Model", "Serial Number", "Project Name", 
+            "Quantity", "Location"
+        ])
+        layout.addWidget(results_table)
+        
+        # Add search functionality
+        def perform_search():
+            query = search_input.text().lower()
+            session = Session()
+            items = session.query(Item).filter(
+                (Item.name.ilike(f'%{query}%')) |
+                (Item.model.ilike(f'%{query}%')) |
+                (Item.serial_number.ilike(f'%{query}%'))
+            ).all()
+            
+            results_table.setRowCount(len(items))
+            for i, item in enumerate(items):
+                results_table.setItem(i, 0, QTableWidgetItem(item.name))
+                results_table.setItem(i, 1, QTableWidgetItem(item.model))
+                results_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
+                results_table.setItem(i, 3, QTableWidgetItem(item.project_category))
+                results_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
+                results_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
+            
+            session.close()
+        
+        search_input.textChanged.connect(perform_search)
+        
+        dialog.exec()
+
+    def export_data(self):
+        try:
+            session = Session()
+            items = session.query(Item).all()
+            
+            # Convert to DataFrame
+            data = []
+            for item in items:
+                data.append({
+                    'Name': item.name,
+                    'Model': item.model,
+                    'Serial Number': item.serial_number,
+                    'Project Name': item.project_category,
+                    'Quantity': item.quantity,
+                    'Location': item.storage_location,
+                    'Date Added': item.date_added,
+                    'Supplier': item.supplier,
+                    'Description': item.description
+                })
+            
+            df = pd.DataFrame(data)
+            
+            # Save to file
+            file_name, _ = QFileDialog.getSaveFileName(
+                self, "Export Data", "", "Excel Files (*.xlsx);;CSV Files (*.csv)"
+            )
+            
+            if file_name:
+                if file_name.endswith('.xlsx'):
+                    df.to_excel(file_name, index=False)
+                else:
+                    df.to_csv(file_name, index=False)
+                QMessageBox.information(self, "Success", "Data exported successfully!")
+            
+            session.close()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error exporting data: {str(e)}")
+
+    def sort_items(self, sort_by):
+        session = Session()
+        if sort_by == "Date Added":
+            items = session.query(Item).order_by(Item.date_added.desc()).all()
+        else:
+            items = session.query(Item).order_by(Item.project_category).all()
+        
+        self.items_table.setRowCount(len(items))
+        for i, item in enumerate(items):
+            self.items_table.setItem(i, 0, QTableWidgetItem(item.name))
+            self.items_table.setItem(i, 1, QTableWidgetItem(item.model))
+            self.items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
+            self.items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
+            self.items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
+            self.items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
+            self.items_table.setItem(i, 6, QTableWidgetItem(str(item.date_added)))
+            
+            # Add action buttons
+            actions_widget = QWidget()
+            actions_layout = QHBoxLayout(actions_widget)
+            actions_layout.setContentsMargins(0, 0, 0, 0)
+            
+            edit_btn = QPushButton("Edit")
+            edit_btn.clicked.connect(lambda checked, item=item: self.edit_item(item))
+            delete_btn = QPushButton("Delete")
+            delete_btn.clicked.connect(lambda checked, item=item: self.delete_item(item))
+            
+            actions_layout.addWidget(edit_btn)
+            actions_layout.addWidget(delete_btn)
+            self.items_table.setCellWidget(i, 7, actions_widget)
+        
         session.close()
 
     def show_add_item_dialog(self):
@@ -276,8 +735,45 @@ class MainWindow(QMainWindow):
                 session.close()
 
     def show_record_movement_dialog(self):
-        # Implement movement dialog
-        pass
+        dialog = StockMovementDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            try:
+                session = Session()
+                movement_data = dialog.get_movement_data()
+                
+                # Find the item
+                item = session.query(Item).filter(Item.name == movement_data['item_name']).first()
+                if not item:
+                    raise Exception("Item not found")
+
+                # Create movement record
+                movement = StockMovement(
+                    item_id=item.id,
+                    movement_type=movement_data['movement_type'],
+                    from_location=movement_data['from_location'],
+                    to_location=movement_data['to_location'],
+                    project_category=movement_data['project_category'],
+                    quantity=movement_data['quantity'],
+                    status=movement_data['status'],
+                    date=movement_data['date'],
+                    notes=movement_data['notes']
+                )
+
+                # Update item quantity and location
+                if movement_data['movement_type'] == 'In':
+                    item.quantity += movement_data['quantity']
+                elif movement_data['movement_type'] == 'Out':
+                    item.quantity -= movement_data['quantity']
+                item.storage_location = movement_data['to_location']
+
+                session.add(movement)
+                session.commit()
+                self.load_data()
+                QMessageBox.information(self, "Success", "Movement recorded successfully!")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error recording movement: {str(e)}")
+            finally:
+                session.close()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
