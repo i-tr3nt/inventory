@@ -31,6 +31,8 @@ class Item(Base):
     supplier = Column(String(100))
     storage_location = Column(String(50))
     date_added = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(20), default="Active")
+    notes = Column(Text)
     movements = relationship("StockMovement", back_populates="item")
 
 class StockMovement(Base):
@@ -62,11 +64,13 @@ class AddItemDialog(QDialog):
 
     def setup_ui(self):
         layout = QVBoxLayout()
+        layout.setSpacing(15)
         
         # Name
         name_layout = QHBoxLayout()
         name_layout.addWidget(QLabel("Name:"))
         self.name_input = QLineEdit()
+        self.name_input.setMinimumWidth(400)
         name_layout.addWidget(self.name_input)
         layout.addLayout(name_layout)
 
@@ -74,6 +78,7 @@ class AddItemDialog(QDialog):
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
         self.model_input = QLineEdit()
+        self.model_input.setMinimumWidth(400)
         model_layout.addWidget(self.model_input)
         layout.addLayout(model_layout)
 
@@ -81,6 +86,7 @@ class AddItemDialog(QDialog):
         serial_layout = QHBoxLayout()
         serial_layout.addWidget(QLabel("Serial Number:"))
         self.serial_input = QLineEdit()
+        self.serial_input.setMinimumWidth(400)
         serial_layout.addWidget(self.serial_input)
         layout.addLayout(serial_layout)
 
@@ -88,6 +94,7 @@ class AddItemDialog(QDialog):
         category_layout = QHBoxLayout()
         category_layout.addWidget(QLabel("Project Category:"))
         self.category_input = QLineEdit()
+        self.category_input.setMinimumWidth(400)
         category_layout.addWidget(self.category_input)
         layout.addLayout(category_layout)
 
@@ -95,14 +102,24 @@ class AddItemDialog(QDialog):
         desc_layout = QVBoxLayout()
         desc_layout.addWidget(QLabel("Description:"))
         self.desc_input = QTextEdit()
+        self.desc_input.setMinimumHeight(100)
         desc_layout.addWidget(self.desc_input)
         layout.addLayout(desc_layout)
+
+        # Notes
+        notes_layout = QVBoxLayout()
+        notes_layout.addWidget(QLabel("Notes:"))
+        self.notes_input = QTextEdit()
+        self.notes_input.setMinimumHeight(100)
+        notes_layout.addWidget(self.notes_input)
+        layout.addLayout(notes_layout)
 
         # Quantity
         quantity_layout = QHBoxLayout()
         quantity_layout.addWidget(QLabel("Quantity:"))
         self.quantity_input = QSpinBox()
         self.quantity_input.setMinimum(0)
+        self.quantity_input.setMinimumWidth(400)
         quantity_layout.addWidget(self.quantity_input)
         layout.addLayout(quantity_layout)
 
@@ -110,6 +127,7 @@ class AddItemDialog(QDialog):
         supplier_layout = QHBoxLayout()
         supplier_layout.addWidget(QLabel("Supplier:"))
         self.supplier_input = QLineEdit()
+        self.supplier_input.setMinimumWidth(400)
         supplier_layout.addWidget(self.supplier_input)
         layout.addLayout(supplier_layout)
 
@@ -118,6 +136,7 @@ class AddItemDialog(QDialog):
         location_layout.addWidget(QLabel("Storage Location:"))
         self.location_input = QComboBox()
         self.location_input.addItems(["Data Office", "Stores", "Container", "Field Work"])
+        self.location_input.setMinimumWidth(400)
         location_layout.addWidget(self.location_input)
         layout.addLayout(location_layout)
 
@@ -126,6 +145,7 @@ class AddItemDialog(QDialog):
         date_layout.addWidget(QLabel("Date Added:"))
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
+        self.date_input.setMinimumWidth(400)
         date_layout.addWidget(self.date_input)
         layout.addLayout(date_layout)
 
@@ -150,7 +170,6 @@ class AddItemDialog(QDialog):
         self.quantity_input.setValue(item.quantity)
         self.supplier_input.setText(item.supplier)
         self.location_input.setCurrentText(item.storage_location)
-        # Convert datetime to QDate
         if isinstance(item.date_added, datetime):
             self.date_input.setDate(QDate(item.date_added.year, item.date_added.month, item.date_added.day))
         else:
@@ -166,7 +185,8 @@ class AddItemDialog(QDialog):
             'quantity': self.quantity_input.value(),
             'supplier': self.supplier_input.text(),
             'storage_location': self.location_input.currentText(),
-            'date_added': self.date_input.date().toPython()
+            'date_added': self.date_input.date().toPython(),
+            'notes': self.notes_input.toPlainText()
         }
 
 class StockMovementDialog(QDialog):
@@ -178,12 +198,14 @@ class StockMovementDialog(QDialog):
 
     def setup_ui(self):
         layout = QVBoxLayout()
+        layout.setSpacing(15)
         
         # Item (with autocomplete)
         item_layout = QHBoxLayout()
         item_layout.addWidget(QLabel("Item:"))
         self.item_input = QLineEdit()
         self.item_input.setPlaceholderText("Start typing to search items...")
+        self.item_input.setMinimumWidth(400)
         item_layout.addWidget(self.item_input)
         layout.addLayout(item_layout)
 
@@ -192,6 +214,7 @@ class StockMovementDialog(QDialog):
         type_layout.addWidget(QLabel("Movement Type:"))
         self.type_input = QComboBox()
         self.type_input.addItems(["In", "Out", "Transferred"])
+        self.type_input.setMinimumWidth(400)
         type_layout.addWidget(self.type_input)
         layout.addLayout(type_layout)
 
@@ -200,6 +223,7 @@ class StockMovementDialog(QDialog):
         from_layout.addWidget(QLabel("From:"))
         self.from_input = QComboBox()
         self.from_input.addItems(["Data Office", "Stores", "Container", "Field Work"])
+        self.from_input.setMinimumWidth(400)
         from_layout.addWidget(self.from_input)
         layout.addLayout(from_layout)
 
@@ -208,6 +232,7 @@ class StockMovementDialog(QDialog):
         to_layout.addWidget(QLabel("To:"))
         self.to_input = QComboBox()
         self.to_input.addItems(["Data Office", "Stores", "Container", "Field Work"])
+        self.to_input.setMinimumWidth(400)
         to_layout.addWidget(self.to_input)
         layout.addLayout(to_layout)
 
@@ -215,6 +240,7 @@ class StockMovementDialog(QDialog):
         category_layout = QHBoxLayout()
         category_layout.addWidget(QLabel("Project Category:"))
         self.category_input = QLineEdit()
+        self.category_input.setMinimumWidth(400)
         category_layout.addWidget(self.category_input)
         layout.addLayout(category_layout)
 
@@ -223,6 +249,7 @@ class StockMovementDialog(QDialog):
         quantity_layout.addWidget(QLabel("Quantity:"))
         self.quantity_input = QSpinBox()
         self.quantity_input.setMinimum(1)
+        self.quantity_input.setMinimumWidth(400)
         quantity_layout.addWidget(self.quantity_input)
         layout.addLayout(quantity_layout)
 
@@ -231,6 +258,7 @@ class StockMovementDialog(QDialog):
         status_layout.addWidget(QLabel("Status:"))
         self.status_input = QComboBox()
         self.status_input.addItems(["Active", "Inactive", "Damaged"])
+        self.status_input.setMinimumWidth(400)
         status_layout.addWidget(self.status_input)
         layout.addLayout(status_layout)
 
@@ -239,6 +267,7 @@ class StockMovementDialog(QDialog):
         date_layout.addWidget(QLabel("Date:"))
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
+        self.date_input.setMinimumWidth(400)
         date_layout.addWidget(self.date_input)
         layout.addLayout(date_layout)
 
@@ -246,6 +275,7 @@ class StockMovementDialog(QDialog):
         notes_layout = QVBoxLayout()
         notes_layout.addWidget(QLabel("Notes:"))
         self.notes_input = QTextEdit()
+        self.notes_input.setMinimumHeight(100)
         notes_layout.addWidget(self.notes_input)
         layout.addLayout(notes_layout)
 
@@ -261,9 +291,33 @@ class StockMovementDialog(QDialog):
 
         self.setLayout(layout)
 
+        # Setup autocomplete for items
+        self.setup_item_autocomplete()
+
+    def setup_item_autocomplete(self):
+        session = Session()
+        items = session.query(Item).all()
+        item_list = []
+        for item in items:
+            item_list.append(f"{item.name} - {item.serial_number} - {item.model} - {item.project_category}")
+        session.close()
+
+        completer = QCompleter(item_list)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.item_input.setCompleter(completer)
+
+        # Connect signal to handle item selection
+        self.item_input.textChanged.connect(self.handle_item_selection)
+
+    def handle_item_selection(self, text):
+        if text and " - " in text:
+            parts = text.split(" - ")
+            if len(parts) >= 4:
+                self.category_input.setText(parts[3])  # Set project category
+
     def get_movement_data(self):
         return {
-            'item_name': self.item_input.text(),
+            'item_name': self.item_input.text().split(" - ")[0] if " - " in self.item_input.text() else self.item_input.text(),
             'movement_type': self.type_input.currentText(),
             'from_location': self.from_input.currentText(),
             'to_location': self.to_input.currentText(),
@@ -330,24 +384,6 @@ class MainWindow(QMainWindow):
         dashboard_tab = QWidget()
         dashboard_layout = QVBoxLayout(dashboard_tab)
         
-        # Stats card
-        stats_card = QFrame()
-        stats_card.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
-                border-radius: 8px;
-                padding: 20px;
-            }
-        """)
-        stats_layout = QVBoxLayout(stats_card)
-        
-        self.total_items_label = QLabel("Total Items: 0")
-        self.total_items_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
-        self.total_items_label.setStyleSheet("color: #2c3e50;")
-        stats_layout.addWidget(self.total_items_label)
-        
-        dashboard_layout.addWidget(stats_card)
-
         # Recent items table
         recent_label = QLabel("Recently Added Items")
         recent_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
@@ -360,7 +396,7 @@ class MainWindow(QMainWindow):
             "Name", "Model", "Serial Number", "Project Name", 
             "Quantity", "Location", "Date Added"
         ])
-        self.recent_items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.recent_items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         dashboard_layout.addWidget(self.recent_items_table)
 
         # Items tab
@@ -374,7 +410,7 @@ class MainWindow(QMainWindow):
             "Name", "Model", "Serial Number", "Project Name", 
             "Quantity", "Location", "Date Added", "Actions"
         ])
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         items_layout.addWidget(self.items_table)
 
         # Stock Movement tab
@@ -388,7 +424,7 @@ class MainWindow(QMainWindow):
             "Date", "Item", "Type", "From", "To", 
             "Project Name", "Quantity", "Status"
         ])
-        self.movement_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.movement_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         movement_layout.addWidget(self.movement_table)
 
         # Add tabs
@@ -428,6 +464,14 @@ class MainWindow(QMainWindow):
         record_movement_btn.clicked.connect(self.show_record_movement_dialog)
         actions_layout.addWidget(record_movement_btn)
 
+        search_btn = QPushButton("Search Items")
+        search_btn.clicked.connect(self.show_search_dialog)
+        actions_layout.addWidget(search_btn)
+
+        export_btn = QPushButton("Export Data")
+        export_btn.clicked.connect(self.export_data)
+        actions_layout.addWidget(export_btn)
+
         # Sort options
         sort_label = QLabel("Sort By")
         sort_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
@@ -458,10 +502,11 @@ class MainWindow(QMainWindow):
                 background-color: #3498db;
                 color: white;
                 border: none;
-                padding: 10px;
+                padding: 8px;
                 border-radius: 5px;
                 font-weight: bold;
                 margin: 5px 0;
+                min-height: 30px;
             }
             QPushButton:hover {
                 background-color: #2980b9;
@@ -472,12 +517,12 @@ class MainWindow(QMainWindow):
                 border-radius: 8px;
             }
             QTableWidget::item {
-                padding: 8px;
+                padding: 6px;
             }
             QHeaderView::section {
                 background-color: #3498db;
                 color: white;
-                padding: 10px;
+                padding: 8px;
                 border: none;
                 font-weight: bold;
             }
@@ -488,7 +533,7 @@ class MainWindow(QMainWindow):
             }
             QTabBar::tab {
                 background-color: #f5f6fa;
-                padding: 10px 20px;
+                padding: 8px 16px;
                 border: 1px solid #e0e0e0;
                 border-bottom: none;
                 border-top-left-radius: 5px;
@@ -500,10 +545,29 @@ class MainWindow(QMainWindow):
                 font-weight: bold;
             }
             QComboBox {
-                padding: 8px;
+                padding: 6px;
                 border: 1px solid #e0e0e0;
                 border-radius: 5px;
                 background-color: white;
+                min-height: 30px;
+                min-width: 200px;
+            }
+            QLineEdit, QTextEdit, QSpinBox {
+                padding: 6px;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                background-color: white;
+                min-height: 30px;
+                min-width: 200px;
+            }
+            QDialog {
+                min-width: 600px;
+            }
+            QCompleter {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                padding: 5px;
             }
         """)
         
@@ -563,10 +627,6 @@ class MainWindow(QMainWindow):
             self.movement_table.setItem(i, 5, QTableWidgetItem(movement.project_category))
             self.movement_table.setItem(i, 6, QTableWidgetItem(str(movement.quantity)))
             self.movement_table.setItem(i, 7, QTableWidgetItem(movement.status))
-
-        # Update dashboard stats
-        total_items = session.query(Item).count()
-        self.total_items_label.setText(f"Total Items: {total_items}")
 
         session.close()
 
