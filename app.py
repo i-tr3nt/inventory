@@ -472,20 +472,6 @@ class MainWindow(QMainWindow):
         self.recent_items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         dashboard_layout.addWidget(self.recent_items_table)
 
-        # Items tab
-        items_tab = QWidget()
-        items_layout = QVBoxLayout(items_tab)
-        
-        # Items table
-        self.items_table = QTableWidget()
-        self.items_table.setColumnCount(8)
-        self.items_table.setHorizontalHeaderLabels([
-            "Name", "Model", "Serial Number", "Project Name", 
-            "Quantity", "Location", "Date Added", "Actions"
-        ])
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        items_layout.addWidget(self.items_table)
-
         # Stock Movement tab
         movement_tab = QWidget()
         movement_layout = QVBoxLayout(movement_tab)
@@ -502,7 +488,6 @@ class MainWindow(QMainWindow):
 
         # Add tabs
         tabs.addTab(dashboard_tab, "Dashboard")
-        tabs.addTab(items_tab, "Items")
         tabs.addTab(movement_tab, "Stock Movement")
 
         # Right side - Quick actions
@@ -552,7 +537,7 @@ class MainWindow(QMainWindow):
         actions_layout.addWidget(sort_label)
 
         self.sort_combo = QComboBox()
-        self.sort_combo.addItems(["Date Added", "Project Name"])
+        self.sort_combo.addItems(["Name", "Date Added", "Project Name"])
         self.sort_combo.currentTextChanged.connect(self.sort_items)
         actions_layout.addWidget(self.sort_combo)
 
@@ -650,32 +635,6 @@ class MainWindow(QMainWindow):
     def load_data(self):
         session = Session()
         
-        # Load items
-        items = session.query(Item).all()
-        self.items_table.setRowCount(len(items))
-        for i, item in enumerate(items):
-            self.items_table.setItem(i, 0, QTableWidgetItem(item.name))
-            self.items_table.setItem(i, 1, QTableWidgetItem(item.model))
-            self.items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
-            self.items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
-            self.items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
-            self.items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
-            self.items_table.setItem(i, 6, QTableWidgetItem(str(item.date_added)))
-
-            # Add action buttons
-            actions_widget = QWidget()
-            actions_layout = QHBoxLayout(actions_widget)
-            actions_layout.setContentsMargins(0, 0, 0, 0)
-            
-            edit_btn = QPushButton("Edit")
-            edit_btn.clicked.connect(lambda checked, item=item: self.edit_item(item))
-            delete_btn = QPushButton("Delete")
-            delete_btn.clicked.connect(lambda checked, item=item: self.delete_item(item))
-            
-            actions_layout.addWidget(edit_btn)
-            actions_layout.addWidget(delete_btn)
-            self.items_table.setCellWidget(i, 7, actions_widget)
-
         # Load recent items (last 5)
         recent_items = session.query(Item).order_by(Item.date_added.desc()).limit(5).all()
         self.recent_items_table.setRowCount(len(recent_items))
@@ -686,13 +645,13 @@ class MainWindow(QMainWindow):
             self.recent_items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
             self.recent_items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
             self.recent_items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
-            self.recent_items_table.setItem(i, 6, QTableWidgetItem(str(item.date_added)))
+            self.recent_items_table.setItem(i, 6, QTableWidgetItem(item.date_added.strftime("%Y-%m-%d %H:%M:%S")))
 
         # Load movements
         movements = session.query(StockMovement).order_by(StockMovement.date.desc()).all()
         self.movement_table.setRowCount(len(movements))
         for i, movement in enumerate(movements):
-            self.movement_table.setItem(i, 0, QTableWidgetItem(str(movement.date)))
+            self.movement_table.setItem(i, 0, QTableWidgetItem(movement.date.strftime("%Y-%m-%d %H:%M:%S")))
             self.movement_table.setItem(i, 1, QTableWidgetItem(movement.item.name))
             self.movement_table.setItem(i, 2, QTableWidgetItem(movement.movement_type))
             self.movement_table.setItem(i, 3, QTableWidgetItem(movement.from_location))
@@ -834,32 +793,20 @@ class MainWindow(QMainWindow):
         session = Session()
         if sort_by == "Date Added":
             items = session.query(Item).order_by(Item.date_added.desc()).all()
+        elif sort_by == "Name":
+            items = session.query(Item).order_by(Item.name).all()
         else:
             items = session.query(Item).order_by(Item.project_category).all()
         
-        self.items_table.setRowCount(len(items))
+        self.recent_items_table.setRowCount(len(items))
         for i, item in enumerate(items):
-            self.items_table.setItem(i, 0, QTableWidgetItem(item.name))
-            self.items_table.setItem(i, 1, QTableWidgetItem(item.model))
-            self.items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
-            self.items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
-            self.items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
-            self.items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
-            self.items_table.setItem(i, 6, QTableWidgetItem(str(item.date_added)))
-            
-            # Add action buttons
-            actions_widget = QWidget()
-            actions_layout = QHBoxLayout(actions_widget)
-            actions_layout.setContentsMargins(0, 0, 0, 0)
-            
-            edit_btn = QPushButton("Edit")
-            edit_btn.clicked.connect(lambda checked, item=item: self.edit_item(item))
-            delete_btn = QPushButton("Delete")
-            delete_btn.clicked.connect(lambda checked, item=item: self.delete_item(item))
-            
-            actions_layout.addWidget(edit_btn)
-            actions_layout.addWidget(delete_btn)
-            self.items_table.setCellWidget(i, 7, actions_widget)
+            self.recent_items_table.setItem(i, 0, QTableWidgetItem(item.name))
+            self.recent_items_table.setItem(i, 1, QTableWidgetItem(item.model))
+            self.recent_items_table.setItem(i, 2, QTableWidgetItem(item.serial_number))
+            self.recent_items_table.setItem(i, 3, QTableWidgetItem(item.project_category))
+            self.recent_items_table.setItem(i, 4, QTableWidgetItem(str(item.quantity)))
+            self.recent_items_table.setItem(i, 5, QTableWidgetItem(item.storage_location))
+            self.recent_items_table.setItem(i, 6, QTableWidgetItem(item.date_added.strftime("%Y-%m-%d %H:%M:%S")))
         
         session.close()
 
