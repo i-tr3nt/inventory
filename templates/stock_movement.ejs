@@ -1,0 +1,95 @@
+<%- include('base') %>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Stock Movement</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMovementModal">
+            <i class='bx bx-plus'></i> Record Movement
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Item</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% movements.forEach(movement => { %>
+                            <tr>
+                                <td><%= new Date(movement.date).toLocaleString() %></td>
+                                <td><%= movement.item.name %></td>
+                                <td>
+                                    <span class="badge <%= 
+                                        movement.movement_type === 'in' ? 'bg-success' :
+                                        movement.movement_type === 'out' ? 'bg-danger' :
+                                        movement.movement_type === 'damaged' ? 'bg-warning' :
+                                        'bg-info'
+                                    %>">
+                                        <%= movement.movement_type.charAt(0).toUpperCase() + movement.movement_type.slice(1) %>
+                                    </span>
+                                </td>
+                                <td><%= movement.quantity %></td>
+                                <td><%= movement.notes %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Movement Modal -->
+<div class="modal fade" id="addMovementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Record Stock Movement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/add_movement" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Item</label>
+                        <select class="form-select" name="item_id" required>
+                            <option value="">Select Item</option>
+                            <% items.forEach(item => { %>
+                                <option value="<%= item.id %>"><%= item.name %> (Current Stock: <%= item.quantity %>)</option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Movement Type</label>
+                        <select class="form-select" name="movement_type" required>
+                            <option value="">Select Type</option>
+                            <option value="in">Stock In</option>
+                            <option value="out">Stock Out</option>
+                            <option value="damaged">Damaged</option>
+                            <option value="transferred">Transferred</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" class="form-control" name="quantity" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Record Movement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div> 

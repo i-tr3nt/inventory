@@ -1,0 +1,118 @@
+<%- include('base') %>
+
+<div class="container-fluid">
+    <h2 class="mb-4">Dashboard</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Items</h5>
+                    <h2 class="card-text"><%= total_items %></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <h5 class="card-title">Low Stock Items</h5>
+                    <h2 class="card-text"><%= low_stock %></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Quick Search</h5>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search items...">
+                        <button class="btn btn-primary" type="button" onclick="searchItems()">
+                            <i class='bx bx-search'></i>
+                        </button>
+                    </div>
+                    <div id="searchResults" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Category Distribution</h5>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="d-grid gap-2">
+                        <a href="/items" class="btn btn-primary">
+                            <i class='bx bx-plus'></i> Add New Item
+                        </a>
+                        <a href="/stock_movement" class="btn btn-success">
+                            <i class='bx bx-transfer'></i> Record Stock Movement
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Category Distribution Chart
+const categoryData = <%- JSON.stringify(category_distribution) %>;
+const ctx = document.getElementById('categoryChart').getContext('2d');
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(categoryData),
+        datasets: [{
+            data: Object.values(categoryData),
+            backgroundColor: [
+                '#2ecc71',
+                '#3498db',
+                '#9b59b6',
+                '#f1c40f',
+                '#e67e22'
+            ]
+        }]
+    }
+});
+
+// Search functionality
+function searchItems() {
+    const query = document.getElementById('searchInput').value;
+    fetch(`/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '';
+            
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="alert alert-info">No items found</div>';
+                return;
+            }
+            
+            data.forEach(item => {
+                resultsDiv.innerHTML += `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6 class="card-title">${item.name}</h6>
+                            <p class="card-text mb-0">
+                                Model: ${item.model}<br>
+                                Serial: ${item.serial_number}<br>
+                                Quantity: ${item.quantity}<br>
+                                Location: ${item.storage_location}
+                            </p>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+}
+</script> 
