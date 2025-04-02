@@ -1,81 +1,83 @@
-# Inventory Management System
+# THRUZIM Inventory Management System
 
-A modern and simple inventory management system built with Python and PyQt6. This desktop application is designed for stock keeping and management, featuring a clean and intuitive interface.
+A desktop application for managing inventory, built with Python and PyQt6.
 
 ## Features
 
-- Modern desktop interface with tabs
-- Dashboard with key metrics and charts
-- Item management with detailed tracking
-- Stock movement tracking (in, out, damaged, transferred)
-- Category distribution visualization
-- Low stock alerts
-- Multiple storage location support
+- User authentication with role-based access control
+- Inventory management (add, edit, delete items)
+- Stock tracking and alerts
+- Sales and purchase management
+- Reports generation
+- Data persistence using SQLite database
 
-## Prerequisites
+## Requirements
 
-- Python 3.7 or higher
-- pip (Python package installer)
+- Python 3.8 or higher
+- PyQt6
+- SQLite3
+- Other dependencies listed in `requirements.txt`
 
 ## Installation
 
-1. Clone this repository:
+1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd inventory-management
+git clone https://github.com/yourusername/thruzim-inventory.git
+cd thruzim-inventory
 ```
 
-2. Create a virtual environment (recommended):
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
-venv\Scripts\activate  # On Windows
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install the required packages:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Running the Application
 
-1. Start the application:
+1. Activate the virtual environment if not already activated:
 ```bash
-python app.py
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-## Usage
+2. Run the application:
+```bash
+python main.py
+```
 
-### Dashboard
-- View total items count
-- Monitor low stock items
-- View category distribution chart
-- Quick access to add items and record movements
+## Building the Executable
 
-### Items Management
-- Add new items with detailed information
-- View all items in a table format
-- Track item quantities
-- Monitor storage locations
-- View and edit item details
+To create a standalone executable:
 
-### Stock Movement
-- Record stock movements (in, out, damaged, transferred)
-- Track movement history
-- Add notes to movements
-- View movement timeline
+1. Install PyInstaller:
+```bash
+pip install pyinstaller
+```
 
-## Storage Locations
+2. Build the executable:
+```bash
+pyinstaller --onefile --windowed --icon=assets/icon.ico main.py
+```
 
-The system supports the following storage locations:
-- Stores
-- Office
-- Container
-- Data Office
+The executable will be created in the `dist` directory.
 
-## Database
+## Default Login Credentials
 
-The application uses SQLite as its database. The database file (`inventory.db`) will be automatically created when you first run the application.
+- Username: admin
+- Password: admin123
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests! 
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request 
